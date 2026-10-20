@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f8">
+  <title>TTG Intraday | Orderbook</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #75818d;
+      --line: #e5e9ed;
+      --paper: #fff;
+      --canvas: #f4f6f8;
+      --navy: #122a3a;
+      --green: #16866d;
+      --green-soft: #eaf6f2;
+      --red: #d15a5a;
+      --red-soft: #fbefef;
+      --amber: #a97523;
+      --shadow: 0 2px 10px rgba(25, 40, 52, .035), 0 12px 32px rgba(25, 40, 52, .025);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { height: 66px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 max(28px, calc((100vw - 1200px)/2)); }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 680; letter-spacing: .015em; }
+    .brand-mark { width: 28px; height: 28px; border: 1px solid rgba(255,255,255,.34); border-radius: 8px; display: grid; place-items: center; color: #9be1cc; font-size: 15px; }
+    .top-right { display: flex; align-items: center; gap: 22px; font-size: 12px; color: #c2d0d9; }
+    .demo-label { border: 1px solid rgba(255,255,255,.24); border-radius: 20px; padding: 5px 10px; color: #d8e3e8; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    main { max-width: 1200px; margin: 0 auto; padding: 35px 28px 50px; }
+    .heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; margin-bottom: 7px; }
+    h1 { font-size: 27px; letter-spacing: -.035em; line-height: 1.15; margin: 0; font-weight: 650; }
+    .subtitle { color: var(--muted); margin-top: 7px; font-size: 13px; }
+    .session { display: flex; align-items: center; gap: 8px; color: #54616c; font-size: 12px; padding-bottom: 3px; }
+    .pulse { width: 8px; height: 8px; background: #27a77e; border-radius: 50%; box-shadow: 0 0 0 3px #e4f4ee; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat, .panel { background: var(--paper); border: 1px solid #e8ecef; border-radius: 10px; box-shadow: var(--shadow); }
+    .stat { padding: 14px 17px; min-height: 78px; }
+    .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 650; }
+    .stat-value { font-size: 17px; font-weight: 650; margin-top: 4px; letter-spacing: -.02em; }
+    .stat-value small { color: var(--muted); font-weight: 450; font-size: 12px; letter-spacing: 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 17px; align-items: start; }
+    .panel-head { min-height: 61px; padding: 16px 19px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panel-title { font-size: 14px; font-weight: 670; }
+    .panel-note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .book-label { display: flex; align-items: center; gap: 8px; color: #64717b; font-size: 11px; }
+    .book-label .pulse { width: 6px; height: 6px; box-shadow: none; }
+    .book-grid { display: grid; grid-template-columns: 1fr 1fr; }
+    .side { min-width: 0; }
+    .side + .side { border-left: 1px solid var(--line); }
+    .side-head { height: 44px; background: #fafbfc; padding: 0 17px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); color: #66737e; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+    .side-head.buy { color: var(--green); }
+    .side-head.sell { color: var(--red); }
+    .col-head, .order-row { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(65px, .78fr) minmax(75px, .9fr); gap: 4px; align-items: center; padding: 0 17px; }
+    .col-head { height: 34px; color: #9aa4ac; font-size: 10px; text-transform: uppercase; letter-spacing: .045em; border-bottom: 1px solid #f0f2f4; }
+    .order-row { min-height: 40px; border-bottom: 1px solid #f3f5f6; font-variant-numeric: tabular-nums; font-size: 12px; position: relative; overflow: hidden; }
+    .order-row > span { z-index: 1; }
+    .order-row .depth { position: absolute; z-index: 0; right: 0; top: 0; height: 100%; opacity: .65; }
+    .buy .depth { background: #edf7f3; }
+    .sell .depth { background: #fbf0f0; }
+    .buy .price { color: var(--green); font-weight: 650; }
+    .sell .price { color: var(--red); font-weight: 650; }
+    .num { text-align: right; }
+    .empty { min-height: 134px; display: grid; place-items: center; text-align: center; padding: 20px; color: #9aa4ac; font-size: 12px; }
+    .empty strong { display: block; color: #64717b; font-size: 12px; font-weight: 570; margin-bottom: 3px; }
+    .spread { background: #f8fafb; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 43px; display: flex; justify-content: center; align-items: center; gap: 8px; color: #78848d; font-size: 11px; }
+    .spread strong { color: #394752; font-size: 12px; font-weight: 630; }
+    .trade-panel { margin-top: 17px; }
+    .trade-panel .panel-head { min-height: 56px; }
+    .trades-head, .trade-row { display: grid; grid-template-columns: 1fr 1fr 1fr .8fr; gap: 8px; padding: 0 19px; align-items: center; }
+    .trades-head { height: 34px; color: #98a2aa; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #f0f2f4; }
+    .trade-row { min-height: 39px; font-size: 12px; font-variant-numeric: tabular-nums; border-bottom: 1px solid #f3f5f6; }
+    .trade-row:last-child { border-bottom: 0; }
+    .trade-price { font-weight: 650; }
+    .trade-empty { min-height: 70px; display: grid; place-items: center; color: #9aa4ac; font-size: 12px; }
+    .form-panel .panel-head { min-height: 61px; }
+    .form-body { padding: 17px 19px 19px; }
+    .direction { display: grid; grid-template-columns: 1fr 1fr; background: #f2f4f5; padding: 3px; border-radius: 7px; margin-bottom: 19px; }
+    .direction button { border: 0; border-radius: 5px; height: 34px; color: #77828a; background: transparent; font-weight: 620; font-size: 12px; }
+    .direction button.active[data-side="buy"] { color: var(--green); background: white; box-shadow: 0 1px 4px #17212b18; }
+    .direction button.active[data-side="sell"] { color: var(--red); background: white; box-shadow: 0 1px 4px #17212b18; }
+    .field { margin-bottom: 15px; }
+    .field label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; font-weight: 620; color: #4d5a64; }
+    .field label span { color: #9aa4ac; font-weight: 450; }
+    .input-wrap { display: flex; align-items: center; height: 39px; border: 1px solid #dfe4e8; border-radius: 6px; background: white; overflow: hidden; }
+    .input-wrap:focus-within { border-color: #84b7a8; box-shadow: 0 0 0 3px #eaf6f2; }
+    .input-wrap input { outline: none; border: 0; min-width: 0; flex: 1; height: 100%; padding: 0 10px; color: var(--ink); background: transparent; font-variant-numeric: tabular-nums; }
+    .input-wrap input::placeholder { color: #b2bac0; }
+    .unit { color: #8a959d; font-size: 11px; padding-right: 10px; }
+    .select-wrap select { width: 100%; appearance: none; outline: none; border: 1px solid #dfe4e8; border-radius: 6px; background: #fff; height: 39px; padding: 0 11px; color: var(--ink); }
+    .select-wrap select:focus { border-color: #84b7a8; box-shadow: 0 0 0 3px #eaf6f2; }
+    .submit { width: 100%; height: 41px; margin-top: 3px; border: 0; border-radius: 6px; background: var(--green); color: white; font-size: 12px; font-weight: 680; transition: background .15s, transform .1s; }
+    .submit:hover { background: #11745e; }
+    .submit:active { transform: translateY(1px); }
+    .submit.sell-submit { background: var(--red); }
+    .submit.sell-submit:hover { background: #bd4b4b; }
+    .form-foot { color: #9aa4ac; font-size: 10px; line-height: 1.5; margin-top: 11px; }
+    .message { font-size: 11px; margin-top: 10px; min-height: 16px; color: var(--red); }
+    .message.success { color: var(--green); }
+    .form-separator { border: 0; border-top: 1px solid var(--line); margin: 17px 0 14px; }
+    .book-actions { display: flex; align-items: center; justify-content: space-between; }
+    .book-actions span { color: var(--muted); font-size: 11px; }
+    .clear-btn { border: 0; padding: 4px 0 4px 8px; background: transparent; color: #75818d; font-size: 11px; }
+    .clear-btn:hover { color: var(--red); }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; transition: .2s ease; pointer-events: none; background: #203442; color: #fff; border-radius: 7px; padding: 10px 15px; box-shadow: var(--shadow); font-size: 12px; z-index: 4; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 850px) { .layout { grid-template-columns: minmax(0, 1fr) 300px; } .col-head, .order-row { padding: 0 12px; } }
+    @media (max-width: 700px) { .topbar { padding: 0 18px; height: 58px; } .top-right { gap: 10px; } main { padding: 26px 16px 36px; } .heading { align-items: flex-start; flex-direction: column; gap: 12px; } h1 { font-size: 24px; } .summary { grid-template-columns: repeat(2, 1fr); } .layout { grid-template-columns: 1fr; } .form-panel { grid-row: 1; } .book-grid { min-height: 190px; } }
+    @media (max-width: 410px) { .book-grid { grid-template-columns: 1fr; } .side + .side { border-left: 0; border-top: 1px solid var(--line); } .book-label { display: none; } .trades-head, .trade-row { padding: 0 12px; gap: 4px; } .stat { padding: 12px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">↗</span><span>INTRADAY MARKETS</span></div>
+    <div class="top-right"><span>TTG · Germany</span><span class="demo-label">Demo</span></div>
+  </header>
+  <main>
+    <div class="heading">
+      <div><div class="eyebrow">Continuous intraday · TTG</div><h1>Orderbook</h1><div class="subtitle">Hourly power · 10:00–11:00 · <span id="delivery-date"></span></div></div>
+      <div class="session"><span class="pulse"></span>Demo session open</div>
+    </div>
+    <section class="summary" aria-label="Market summary">
+      <div class="stat"><div class="stat-label">Best buy</div><div class="stat-value" id="best-buy">— <small>€/MWh</small></div></div>
+      <div class="stat"><div class="stat-label">Best sell</div><div class="stat-value" id="best-sell">— <small>€/MWh</small></div></div>
+      <div class="stat"><div class="stat-label">Spread</div><div class="stat-value" id="summary-spread">— <small>€/MWh</small></div></div>
+      <div class="stat"><div class="stat-label">Traded volume</div><div class="stat-value" id="total-volume">0 <small>MW</small></div></div>
+    </section>
+    <div class="layout">
+      <section>
+        <div class="panel">
+          <div class="panel-head"><div><div class="panel-title">Market depth</div><div class="panel-note">Orders ranked by price</div></div><div class="book-label"><span class="pulse"></span>Live · local demo</div></div>
+          <div class="book-grid">
+            <div class="side buy" id="buy-side"><div class="side-head buy"><span>Buy orders</span><span id="buy-count">0</span></div><div class="col-head"><span>Price</span><span class="num">Quantity</span><span class="num">Balancing group</span></div><div class="rows"></div></div>
+            <div class="side sell" id="sell-side"><div class="side-head sell"><span>Sell orders</span><span id="sell-count">0</span></div><div class="col-head"><span>Price</span><span class="num">Quantity</span><span class="num">Balancing group</span></div><div class="rows"></div></div>
+          </div>
+          <div class="spread">Bid / ask spread <strong id="book-spread">—</strong> <span>€/MWh</span></div>
+        </div>
+        <div class="panel trade-panel">
+          <div class="panel-head"><div><div class="panel-title">Recent trades</div><div class="panel-note">Matched orders for this contract</div></div><div class="book-label" id="trade-count">0 trades</div></div>
+          <div class="trades-head"><span>Time</span><span>Price</span><span>Quantity</span><span>Side</span></div>
+          <div id="trade-list"><div class="trade-empty">No trades yet</div></div>
+        </div>
+      </section>
+      <aside class="panel form-panel">
+        <div class="panel-head"><div><div class="panel-title">Place an order</div><div class="panel-note">10:00–11:00 · TTG</div></div></div>
+        <form class="form-body" id="order-form" novalidate>
+          <div class="direction" role="group" aria-label="Order direction"><button type="button" class="active" data-side="buy">Buy</button><button type="button" data-side="sell">Sell</button></div>
+          <div class="field"><label for="price">Limit price <span>−1,000 to 1,000</span></label><div class="input-wrap"><input id="price" name="price" type="number" min="-1000" max="1000" step="1" placeholder="e.g. 85" required><span class="unit">€/MWh</span></div></div>
+          <div class="field"><label for="quantity">Quantity <span>1 to 1,000</span></label><div class="input-wrap"><input id="quantity" name="quantity" type="number" min="1" max="1000" step="1" placeholder="e.g. 25" required><span class="unit">MW</span></div></div>
+          <div class="field"><label for="group">Balancing group</label><div class="select-wrap"><select id="group" name="group" required><option value="" selected disabled>Select a group</option><option value="TTG-ALPHA">TTG-ALPHA</option><option value="TTG-BETA">TTG-BETA</option><option value="TTG-GAMMA">TTG-GAMMA</option></select></div></div>
+          <button class="submit" id="submit-button" type="submit">Place buy order</button>
+          <div class="message" id="message" aria-live="polite"></div>
+          <div class="form-foot">Orders that cross the opposite side match immediately. Any unfilled quantity stays in the book. Data clears when you refresh.</div>
+          <hr class="form-separator">
+          <div class="book-actions"><span id="order-count">0 open orders</span><button class="clear-btn" id="clear-button" type="button">Clear book</button></div>
+        </form>
+      </aside>
+    </div>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      // Session state intentionally lives only in memory. A page refresh starts a fresh book.
+      let orders = [
+        { id: 1, side: 'buy', price: 72, quantity: 40, group: 'TTG-ALPHA' },
+        { id: 2, side: 'buy', price: 68, quantity: 25, group: 'TTG-BETA' },
+        { id: 3, side: 'buy', price: 61, quantity: 60, group: 'TTG-GAMMA' },
+        { id: 4, side: 'sell', price: 84, quantity: 30, group: 'TTG-BETA' },
+        { id: 5, side: 'sell', price: 91, quantity: 50, group: 'TTG-ALPHA' },
+        { id: 6, side: 'sell', price: 98, quantity: 20, group: 'TTG-GAMMA' }
+      ];
+      let trades = [];
+      let nextId = 7;
+      let activeSide = 'buy';
+      let toastTimer;
+
+      const $ = (selector) => document.querySelector(selector);
+      const money = (value) => `${value < 0 ? '−' : ''}€${Math.abs(value).toLocaleString('en-GB')}`;
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+
+      const deliveryDate = new Date();
+      deliveryDate.setDate(deliveryDate.getDate() + 1);
+      $('#delivery-date').textContent = deliveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      function renderBookSide(side) {
+        const bookSide = $(`#${side}-side`);
+        const sideOrders = orders.filter((order) => order.side === side).sort((a, b) => side === 'buy' ? b.price - a.price || a.id - b.id : a.price - b.price || a.id - b.id);
+        const maxQuantity = Math.max(1, ...sideOrders.map((order) => order.quantity));
+        const rows = bookSide.querySelector('.rows');
+        bookSide.querySelector(`#${side}-count`).textContent = sideOrders.length;
+
+        if (!sideOrders.length) {
+          rows.innerHTML = `<div class="empty"><div><strong>No ${side} orders</strong>Place an order to start the book</div></div>`;
+          return sideOrders;
+        }
+        rows.innerHTML = sideOrders.map((order) => `<div class="order-row"><span class="depth" style="width:${Math.max(5, order.quantity / maxQuantity * 75)}%"></span><span class="price">${money(order.price)}</span><span class="num">${order.quantity.toLocaleString('en-GB')} MW</span><span class="num">${escapeHtml(order.group)}</span></div>`).join('');
+        return sideOrders;
+      }
+
+      function render() {
+        const buys = renderBookSide('buy');
+        const sells = renderBookSide('sell');
+        const bestBuy = buys[0]?.price;
+        const bestSell = sells[0]?.price;
+        const spread = bestBuy !== undefined && bestSell !== undefined ? bestSell - bestBuy : null;
+        $('#best-buy').innerHTML = bestBuy === undefined ? '— <small>€/MWh</small>' : `${money(bestBuy)} <small>€/MWh</small>`;
+        $('#best-sell').innerHTML = bestSell === undefined ? '— <small>€/MWh</small>' : `${money(bestSell)} <small>€/MWh</small>`;
+        $('#summary-spread').innerHTML = spread === null ? '— <small>€/MWh</small>' : `${money(spread)} <small>€/MWh</small>`;
+        $('#book-spread').textContent = spread === null ? '—' : money(spread);
+        $('#total-volume').innerHTML = `${trades.reduce((sum, trade) => sum + trade.quantity, 0).toLocaleString('en-GB')} <small>MW</small>`;
+        $('#order-count').textContent = `${orders.length} open ${orders.length === 1 ? 'order' : 'orders'}`;
+        $('#trade-count').textContent = `${trades.length} ${trades.length === 1 ? 'trade' : 'trades'}`;
+        const tradeList = $('#trade-list');
+        if (!trades.length) {
+          tradeList.innerHTML = '<div class="trade-empty">No trades yet</div>';
+        } else {
+          tradeList.innerHTML = trades.slice(0, 8).map((trade) => `<div class="trade-row"><span>${trade.time}</span><span class="trade-price">${money(trade.price)}</span><span>${trade.quantity.toLocaleString('en-GB')} MW</span><span>${trade.aggressor === 'buy' ? 'Buy ↗' : 'Sell ↘'}</span></div>`).join('');
+        }
+      }
+
+      function showToast(message) {
+        const toast = $('#toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+      }
+
+      document.querySelectorAll('.direction button').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeSide = button.dataset.side;
+          document.querySelectorAll('.direction button').forEach((item) => item.classList.toggle('active', item === button));
+          const submit = $('#submit-button');
+          submit.textContent = `Place ${activeSide} order`;
+          submit.classList.toggle('sell-submit', activeSide === 'sell');
+          $('#message').textContent = '';
+          $('#message').classList.remove('success');
+        });
+      });
+
+      $('#order-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const priceValue = $('#price').value.trim();
+        const quantityValue = $('#quantity').value.trim();
+        const price = Number(priceValue);
+        const quantity = Number(quantityValue);
+        const group = $('#group').value;
+        let error = '';
+        if (priceValue === '' || !Number.isInteger(price) || price < -1000 || price > 1000) error = 'Enter a whole-number price from −1,000 to 1,000.';
+        else if (quantityValue === '' || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000) error = 'Enter a whole-number quantity from 1 to 1,000 MW.';
+        else if (!group) error = 'Choose a balancing group.';
+        if (error) {
+          $('#message').textContent = error;
+          $('#message').classList.remove('success');
+          return;
+        }
+
+        const incoming = { id: nextId++, side: activeSide, price, quantity, group };
+        const opposite = activeSide === 'buy' ? 'sell' : 'buy';
+        const eligible = orders.filter((order) => order.side === opposite && (activeSide === 'buy' ? price >= order.price : price <= order.price))
+          .sort((a, b) => activeSide === 'buy' ? a.price - b.price || a.id - b.id : b.price - a.price || a.id - b.id);
+        let remaining = quantity;
+        let matched = 0;
+
+        for (const resting of eligible) {
+          if (remaining <= 0) break;
+          const fill = Math.min(remaining, resting.quantity);
+          // A trade executes at the resting order's price.
+          trades.unshift({ time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: resting.price, quantity: fill, aggressor: activeSide });
+          resting.quantity -= fill;
+          remaining -= fill;
+          matched += fill;
+          if (resting.quantity === 0) orders = orders.filter((order) => order.id !== resting.id);
+        }
+
+        if (remaining > 0) orders.push({ ...incoming, quantity: remaining });
+        render();
+        $('#message').classList.add('success');
+        $('#message').textContent = matched ? `Matched ${matched} MW${remaining ? `; ${remaining} MW added to the book` : ''}.` : 'Order added to the book.';
+        if (matched) showToast(`Trade executed · ${matched} MW at ${money(trades[0].price)}/MWh`);
+        $('#price').value = '';
+        $('#quantity').value = '';
+        $('#price').focus();
+      });
+
+      $('#clear-button').addEventListener('click', () => {
+        if (!orders.length && !trades.length) return;
+        orders = [];
+        trades = [];
+        render();
+        $('#message').textContent = '';
+        showToast('Orderbook cleared');
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
